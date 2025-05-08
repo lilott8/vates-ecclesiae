@@ -31,6 +31,8 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-crypt:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
+
 
     // Flyway for DB migrations
     implementation("org.flywaydb:flyway-core:$flywayVersion")
@@ -43,6 +45,10 @@ dependencies {
     // Logging
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
     implementation("org.apache.logging.log4j:log4j-api-kotlin:1.2.0")
+
+    // DB: hikari, postgres
+    implementation("com.zaxxer:HikariCP:6.3.0")
+    implementation("org.postgresql:postgresql:42.7.5")
 
     // Test
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.0.21")
