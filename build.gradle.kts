@@ -15,6 +15,7 @@ val kotlinVersion = "2.1.20"
 val exposedVersion = "0.61.0"
 val flywayVersion = "11.8.0"
 val kotlinxSerializationVersion = "1.6.2"
+val ktorVersion = "3.1.3"
 
 dependencies {
     // Kotlin
@@ -25,6 +26,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-hocon:$kotlinxSerializationVersion")
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.1.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+
+    // ktor
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion") // or OkHttp if preferred
+
 
     // Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
@@ -49,6 +56,10 @@ dependencies {
     // DB: hikari, postgres
     implementation("com.zaxxer:HikariCP:6.3.0")
     implementation("org.postgresql:postgresql:42.7.5")
+
+    // JSoup
+    implementation("org.jsoup:jsoup:1.20.1")
+
 
     // Test
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.0.21")
