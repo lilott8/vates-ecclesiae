@@ -31,6 +31,13 @@ dependencies {
     // ktor
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion") // or OkHttp if preferred
+    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-gson:$ktorVersion") // Or the latest version
+//    implementation("io.ktor.client:ktor-client-user-agent:$ktorVersion") // For user agent
+//    implementation("io.ktor.client:ktor-client-timeout:$ktorVersion")
+//    implementation("io.ktor.client:ktor-client-plugins-default:$ktorVersion") // Includes retry
+
 
 
     // Exposed ORM

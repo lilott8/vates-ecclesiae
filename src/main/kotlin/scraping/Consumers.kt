@@ -38,3 +38,17 @@ suspend fun scrape(client: HttpClient, record: CorpusDao) {
 
     }
 }
+
+
+
+fun fetchPage(record:CorpusDao): CrawlerState {
+    return CrawlerState.EXTRACT_LINKS
+}
+
+fun extractLinks(record: CorpusDao): CrawlerState {
+    return CrawlerState.COMPLETE
+}
+
+fun complete(record: CorpusDao): CrawlerState {
+    return CrawlerState.COMPLETE
+}

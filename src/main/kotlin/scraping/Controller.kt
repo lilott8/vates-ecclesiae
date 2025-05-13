@@ -6,7 +6,7 @@ import us.cedarfarm.config.ScraperConfig
 import us.cedarfarm.db.dao.CorpusDao
 
 
-fun runScrapers(config: ScraperConfig, dao: CorpusDao) = runBlocking {
+fun runScrapers(config: ScraperConfig, dao: CorpusDao?) = runBlocking {
 
 }
 
