@@ -2,6 +2,7 @@ package us.cedarfarm
 
 import com.github.ajalt.clikt.core.main
 import com.typesafe.config.ConfigFactory
+import db.dal.CorpusDal
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.hocon.Hocon
@@ -14,6 +15,7 @@ import us.cedarfarm.config.ScraperConfig
 import us.cedarfarm.db.Database
 import us.cedarfarm.db.Migrator
 import us.cedarfarm.db.dao.CorpusDao
+import us.cedarfarm.scraping.initializeCathedrales
 import us.cedarfarm.scraping.runScrapers
 
 val log = logger("main")
@@ -28,10 +30,17 @@ fun main(args: Array<String>) {
     val config = Hocon.decodeFromConfig<AppConfig>(AppConfig.serializer(), hocon)
     log.info("db ${config.db.host}")
 
+    Migrator(config.db).apply{runMigration(true)}
     Database.initialize(config.db)
-//    Migrator(config.db).apply{runMigration()}
+    Database.connect(config.db)
+
+    val corpusDal = CorpusDal()
     runBlocking {
-        runScrapers(config.scraper, null)
+        initializeCathedrales(config.scraper, corpusDal)
+    }
+
+    runBlocking {
+        runScrapers(config.scraper, CorpusDal())
     }
 
 

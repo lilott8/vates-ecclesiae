@@ -11,6 +11,9 @@ import io.ktor.serialization.gson.*
 import io.ktor.serialization.kotlinx.json.*
 import org.apache.logging.log4j.kotlin.Logging
 import us.cedarfarm.config.ScraperConfig
+import java.net.MalformedURLException
+import java.net.URI
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -50,4 +53,22 @@ object HttpClientSingleton {
         }
     }
 
+}
+
+fun getHostFromUrl(input: String): String {
+    return try {
+        val url = URI(input)
+        url.host
+    } catch(e: MalformedURLException) {
+        ""
+    }
+}
+
+fun getPathFromUrl(input: String): String {
+    return try {
+        val url = URI(input)
+        url.path
+    } catch(e: MalformedURLException) {
+        ""
+    }
 }

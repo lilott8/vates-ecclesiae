@@ -4,12 +4,28 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jsoup.Jsoup
+import us.cedarfarm.config.ScraperConfig
 import us.cedarfarm.db.dao.CorpusDao
 import us.cedarfarm.db.models.CrawlerState
-import us.cedarfarm.db.service.CorpusDal
 import us.cedarfarm.utils.toSHA256
+
+suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, config: ScraperConfig) {
+    supervisorScope {
+        repeat(config.maxConcurrentTasks) { workerId ->
+            launch(Dispatchers.IO + CoroutineName("Consumer-${workerId}")) {
+                for (record in channel) {
+                    kotlin.runCatching {
+                        consume(client, )
+                    }
+                }
+            }
+        }
+    }
+}
 
 fun consume(client: HttpClient): suspend (CorpusDao) -> Unit {
     return { record -> scrape(client, record) }

@@ -2,7 +2,7 @@ package us.cedarfarm.db.models
 
 import io.ktor.util.*
 
-enum class CrawlerState() {
+enum class CrawlerState {
     PENDING, FETCH_PAGE, EXTRACT_LINKS, COMPLETE, FAILED;
 
     companion object {

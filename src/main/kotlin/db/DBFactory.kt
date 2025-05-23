@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.logging.log4j.kotlin.Logging
 import org.apache.logging.log4j.kotlin.logger
+import org.jetbrains.exposed.sql.Database
 import us.cedarfarm.config.DbConfig
 import java.sql.Connection
 import javax.sql.DataSource
@@ -31,4 +32,12 @@ object Database {
             return _dataSource ?: throw IllegalStateException("Database not initialized. Call initialize() first.")
         }
 
+    fun connect(config: DbConfig) {
+        if (_dataSource == null) {
+            initialize(config)
+        }
+        _dataSource?.let{
+            Database.connect(it)
+        }
+    }
 }
