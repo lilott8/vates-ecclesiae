@@ -15,11 +15,9 @@ suspend fun produceRecords(channel: Channel<CorpusDao>, config: ScraperConfig) {
     supervisorScope {
         launch(Dispatchers.IO + CoroutineName("Producer")) {
             val records = findRecords(dal, config)
-            if (records.isEmpty()) {
-                records.forEach { state ->
-                    log.info("Publishing ${state.url} to channel")
-                    channel.send(state)
-                }
+            records.forEach { state ->
+                log.info("Publishing ${state.url} to channel")
+                channel.send(state)
             }
             delay(1000)
         }

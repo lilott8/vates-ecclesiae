@@ -28,13 +28,12 @@ fun runScrapers(config: ScraperConfig, dal: CorpusDal?) = runBlocking {
 
 fun initializeCathedrales(config: ScraperConfig, dal: CorpusDal) {
     val list = dal.getAll(5)
-    list.isEmpty().apply {
+    if (list.isEmpty()) {
         log.info("No records found in DB, initializing DB with seeds")
         config.seed.forEach { seed ->
             log.info("Inserting seed $seed")
             val host = getHostFromUrl(seed)
-            val path = getPathFromUrl(seed)
-            dal.create(seed, host, "", path)
+            dal.create(seed, host, "", "")
         }
         log.info("Completed initializing db with seed data")
     }

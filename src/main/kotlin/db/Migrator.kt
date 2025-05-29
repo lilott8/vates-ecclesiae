@@ -22,6 +22,7 @@ class Migrator(config: DbConfig) {
             .cleanDisabled(!wipeDb)
             .load()
         if (wipeDb) {
+            log.warn("Warning: cleaning DB!!!")
             flyway.clean()
         }
         flyway.migrate()

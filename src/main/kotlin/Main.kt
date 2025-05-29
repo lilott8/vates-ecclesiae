@@ -26,11 +26,17 @@ fun main(args: Array<String>) {
     val cli = Cli()
     cli.main(args)
 
+    if (cli.clean) {
+        log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        log.error("    You are cleaning the DB, this is destructive!    ")
+        log.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    }
+
     val hocon = ConfigFactory.parseFile(cli.config)
     val config = Hocon.decodeFromConfig<AppConfig>(AppConfig.serializer(), hocon)
     log.info("db ${config.db.host}")
 
-    Migrator(config.db).apply{runMigration(true)}
+    Migrator(config.db).apply{runMigration(cli.clean)}
     Database.initialize(config.db)
     Database.connect(config.db)
 

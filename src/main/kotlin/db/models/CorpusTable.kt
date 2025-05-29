@@ -1,7 +1,10 @@
 package us.cedarfarm.db.models
 
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.timestamp
+import java.sql.Timestamp
 import java.time.Instant
 
 object CorpusTable : IntIdTable("corpus") {

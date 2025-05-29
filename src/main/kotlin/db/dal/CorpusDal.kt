@@ -1,11 +1,8 @@
 package db.dal
 
 import org.apache.logging.log4j.kotlin.logger
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlLogger
-import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.addLogger
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.statements.StatementContext
 import org.jetbrains.exposed.sql.statements.expandArgs
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -20,14 +17,14 @@ import java.time.temporal.ChronoUnit
 class CorpusDal {
 
     private val log = logger()
-    private val crawlable = listOf(CrawlerState.PENDING)
+    private val crawlable: List<CrawlerState> = listOf(CrawlerState.PENDING)
 
     fun create(url: String, domain: String, pageTitle: String, path: String): CorpusDao = transaction {
         CorpusDao.new {
             this.url = url
             this.domain = domain
             this.path = path
-            this.hash = url.toSHA256()
+            this.hash = ""
             this.pageTitle = pageTitle
             this.state = CrawlerState.PENDING
             this.timesCrawled = 0
@@ -51,7 +48,9 @@ class CorpusDal {
     fun getAll(limit: Int = Integer.MAX_VALUE): List<CorpusDao> {
         return transaction {
             addLogger(MyQueryLogger)
-                CorpusDao.all().toList()
+            val result = CorpusDao.all().limit(limit).toList()
+            log.info("return ${result.size} records")
+            result
         }
     }
 
@@ -76,6 +75,6 @@ object MyQueryLogger : SqlLogger {
         //Customize how you want your logging, for example, using SLF4j
         val logger = logger()
         logger.info("SQL: ${context.expandArgs(transaction)}")
-        logger.trace("SQL: ${context.expandArgs(transaction)}")
+        logger.info(context.sql(transaction))
     }
 }

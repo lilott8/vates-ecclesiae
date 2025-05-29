@@ -14,6 +14,7 @@ import org.apache.logging.log4j.kotlin.Logging
 class Cli : CoreCliktCommand(), Logging {
     val migrate by option("-m", "--migrate", help="run migrations").flag(default = false)
     val config by option("-c", "--config", help="path to config").file(mustExist = true, mustBeReadable = true, canBeFile = true, canBeDir = false).required()
+    val clean by option("-clean", "--clean", help="Wipes the DB, use with caution").flag(default = false)
 
     override fun run() {
         logger.info("migration is set to: ${migrate}, config path is: ${config}")
