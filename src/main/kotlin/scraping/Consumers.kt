@@ -1,5 +1,6 @@
 package us.cedarfarm.scraping
 
+import db.dal.CorpusDal
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -17,13 +18,23 @@ import us.cedarfarm.utils.toSHA256
 private val log = logger("Consumer")
 
 suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, config: ScraperConfig) {
+    val terminals = setOf(CrawlerState.COMPLETE, CrawlerState.FAILED)
     supervisorScope {
         repeat(config.maxConcurrentTasks) { workerId ->
             launch(Dispatchers.IO + CoroutineName("Consumer-${workerId}")) {
-                for (record in channel) {
+                for (c in channel) {
+                    var record = c
                     kotlin.runCatching {
-                        log.info("Processing: ${record.url}")
-                        consume(client, record)
+                        try {
+                            log.info("Processing: ${record.url}")
+                            while (record.state !in terminals) {
+                                log.info("router has ${record.url} in state: ${record.state}")
+                                record = record.state.getHandler()(record, CorpusDal(), client)
+                            }
+                        } catch(e: Exception) {
+                            log.error(e)
+                            e.printStackTrace()
+                        }
                     }
                 }
             }
@@ -34,7 +45,8 @@ suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, conf
 fun consume(client: HttpClient, record: CorpusDao): suspend (CorpusDao) -> Unit {
     return { _ ->
         log.info("in consume for: ${record.url}")
-        scrape(client, record)
+
+//        scrape(client, record)
     }
 }
 
@@ -63,16 +75,32 @@ suspend fun scrape(client: HttpClient, record: CorpusDao) {
     }
 }
 
-
-
-fun fetchPage(record:CorpusDao): CrawlerState {
-    return CrawlerState.EXTRACT_LINKS
+fun handlePending(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
+    log.info("handlePending ${record.url}'s state: ${record.state}")
+    dal.update(record.id.value, record.timesCrawled, CrawlerState.FETCH_PAGE)
+    val updated = dal.findById(record.id.value)!!
+    log.info("handlePending changed ${updated.url} to state: ${updated.state}")
+    return updated
 }
 
-fun extractLinks(record: CorpusDao): CrawlerState {
-    return CrawlerState.COMPLETE
+fun handleFetchPage(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
+    log.info("handleFetchPage for ${record.url}")
+    record.state = CrawlerState.EXTRACT_LINKS
+    return record
 }
 
-fun complete(record: CorpusDao): CrawlerState {
-    return CrawlerState.COMPLETE
+fun handleExtractLinks(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
+    log.info("handleExtractLinks for ${record.url}")
+    record.state = CrawlerState.COMPLETE
+    return record
+}
+
+fun handleComplete(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
+    log.info("handleComplete for ${record.url}")
+    return record
+}
+
+fun handleFailed(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
+    log.info("handleFailed for ${record.url}")
+    return record
 }

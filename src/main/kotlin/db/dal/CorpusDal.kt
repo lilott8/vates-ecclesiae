@@ -35,7 +35,7 @@ class CorpusDal {
         CorpusDao.find { CorpusTable.state eq state}.toList()
     }
 
-    fun update(id: Int, timesCrawled: Int, state: CrawlerState?, hash: String?, path: String?, pageTitle: String?): Boolean = transaction {
+    fun update(id: Int, timesCrawled: Int, state: CrawlerState? = null, hash: String? = null, path: String? = null, pageTitle: String? = null): Boolean = transaction {
         val corpus = CorpusDao.findById(id) ?: return@transaction false
         timesCrawled.let{corpus.timesCrawled = timesCrawled}
         state?.let{corpus.state = state}
@@ -66,6 +66,10 @@ class CorpusDal {
 
     fun findCrawlable(window: Instant): List<CorpusDao> = transaction {
         CorpusDao.find{ CorpusTable.state inList crawlable or (CorpusTable.lastUpdated greater window) }.toList()
+    }
+
+    fun findById(entityId: Int): CorpusDao? = transaction {
+        CorpusDao.find{CorpusTable.id eq entityId}.firstOrNull()
     }
 }
 
