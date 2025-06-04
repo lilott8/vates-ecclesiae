@@ -7,13 +7,17 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.io.files.Path
 import org.apache.logging.log4j.kotlin.logger
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import org.jsoup.Jsoup
 import us.cedarfarm.config.ScraperConfig
 import us.cedarfarm.db.dao.CorpusDao
 import us.cedarfarm.db.models.CrawlerState
+import us.cedarfarm.db.models.StateContext
+import us.cedarfarm.states.crawlerFSM
 import us.cedarfarm.utils.toSHA256
+import java.io.File
+import java.util.UUID
 
 private val log = logger("Consumer")
 
@@ -28,8 +32,9 @@ suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, conf
                         try {
                             log.info("Processing: ${record.url}")
                             while (record.state !in terminals) {
+                                val context = StateContext(record, config, client, CorpusDal())
                                 log.info("router has ${record.url} in state: ${record.state}")
-                                record = record.state.getHandler()(record, CorpusDal(), client)
+                                crawlerFSM.run(context)
                             }
                         } catch(e: Exception) {
                             log.error(e)
@@ -42,65 +47,65 @@ suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, conf
     }
 }
 
-fun consume(client: HttpClient, record: CorpusDao): suspend (CorpusDao) -> Unit {
-    return { _ ->
-        log.info("in consume for: ${record.url}")
-
-//        scrape(client, record)
-    }
-}
-
-suspend fun scrape(client: HttpClient, record: CorpusDao) {
-    runCatching {
-        log.info("Issuing request for: ${record.url}")
-        val html = client.get(record.url).bodyAsText()
-        val document = Jsoup.parse(html)
-        val title = document.title()
-
-        val host = Url(record.url).host
-        val hash = record.url.toSHA256()
-
-        // get links on page
-        val links = document.select("a[href]")
-            .mapNotNull { it.attr("abs:href").takeIf { href -> href.isNotBlank() } }
-            .distinct()
-        // insert links into db
-
-
-        newSuspendedTransaction {
-            // Update record with new information.
-
-        }
-
-    }
-}
-
-fun handlePending(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
-    log.info("handlePending ${record.url}'s state: ${record.state}")
-    dal.update(record.id.value, record.timesCrawled, CrawlerState.FETCH_PAGE)
-    val updated = dal.findById(record.id.value)!!
+suspend fun handlePending(context: StateContext): StateContext {
+    log.info("handlePending ${context.record.url}'s state: ${context.record.state}")
+    context.dal.update(context.record.id.value, context.record.timesCrawled, CrawlerState.FETCH_PAGE)
+    val updated = context.dal.findById(context.record.id.value)!!
     log.info("handlePending changed ${updated.url} to state: ${updated.state}")
-    return updated
+    return context
 }
 
-fun handleFetchPage(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
-    log.info("handleFetchPage for ${record.url}")
-    record.state = CrawlerState.EXTRACT_LINKS
-    return record
+suspend fun handleFetchPage(context: StateContext): StateContext {
+    log.info("handleFetchPage for ${context.record.url}")
+    val path = Path(context.config.corpusDir, "${UUID.randomUUID()}.html")
+    var newRecord: CorpusDao = context.record
+    try {
+        val response = context.client.get(context.record.url)
+
+        if(response.status.isSuccess()) {
+            val body = response.bodyAsText()
+
+            // Extract the page title from HTML (simple regex example)
+            val titleRegex = "<title>(.*?)</title>".toRegex(RegexOption.IGNORE_CASE)
+            val pageTitle = titleRegex.find(body)?.groups?.get(1)?.value ?: ""
+
+            val hash = body.toSHA256()
+            File(path.toString()).writeText(body)
+
+            newRecord = context.dal.updateAndGet(context.record.id.value,
+                state = CrawlerState.EXTRACT_LINKS,
+                timesCrawled = context.record.timesCrawled+1,
+                pageTitle = pageTitle,
+                documentHash = hash)!!
+        }
+    } catch(e: Exception) {
+        log.error("Error fetching page, updating record, or writing results to $path")
+        log.error(e)
+    }
+    return context.copy(record = newRecord)
 }
 
-fun handleExtractLinks(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
-    log.info("handleExtractLinks for ${record.url}")
-    record.state = CrawlerState.COMPLETE
-    return record
+suspend fun handleExtractLinks(context: StateContext): StateContext {
+    log.info("handleExtractLinks for ${context.record.url}")
+    val document = Jsoup.parse(File(context.record.documentPath))
+
+    // Extract and normalize links
+    val links = document.select("a[href]")
+        .mapNotNull { it.absUrl("href").takeIf { href -> href.isNotBlank() } }
+
+    // insert each new link
+
+
+//    context.record.state = CrawlerState.COMPLETE
+    return context
 }
 
-fun handleComplete(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
-    log.info("handleComplete for ${record.url}")
-    return record
+suspend fun handleComplete(context: StateContext): StateContext {
+    log.info("handleComplete for ${context.record.url}")
+    return context
 }
 
-fun handleFailed(record: CorpusDao, dal: CorpusDal, client: HttpClient): CorpusDao {
-    log.info("handleFailed for ${record.url}")
-    return record
+suspend fun handleFailed(context: StateContext): StateContext {
+    log.info("handleFailed for ${context.record.url}")
+    return context
 }

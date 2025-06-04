@@ -2,7 +2,6 @@ package db.dal
 
 import org.apache.logging.log4j.kotlin.logger
 import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.statements.StatementContext
 import org.jetbrains.exposed.sql.statements.expandArgs
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -10,9 +9,7 @@ import us.cedarfarm.db.dao.CorpusDao
 import us.cedarfarm.db.models.CorpusTable
 import us.cedarfarm.db.models.CrawlerState
 import us.cedarfarm.utils.toSHA256
-import java.time.Clock
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 class CorpusDal {
 
@@ -22,9 +19,10 @@ class CorpusDal {
     fun create(url: String, domain: String, pageTitle: String, path: String): CorpusDao = transaction {
         CorpusDao.new {
             this.url = url
+            this.urlHash = url.toSHA256()
             this.domain = domain
-            this.path = path
-            this.hash = ""
+            this.documentPath = path
+            this.documentHash = ""
             this.pageTitle = pageTitle
             this.state = CrawlerState.PENDING
             this.timesCrawled = 0
@@ -35,14 +33,20 @@ class CorpusDal {
         CorpusDao.find { CorpusTable.state eq state}.toList()
     }
 
-    fun update(id: Int, timesCrawled: Int, state: CrawlerState? = null, hash: String? = null, path: String? = null, pageTitle: String? = null): Boolean = transaction {
+    fun update(id: Int, timesCrawled: Int? = null, state: CrawlerState? = null, urlHash: String? = null, documentHash: String? = null, documentPath: String? = null, pageTitle: String? = null): Boolean = transaction {
         val corpus = CorpusDao.findById(id) ?: return@transaction false
-        timesCrawled.let{corpus.timesCrawled = timesCrawled}
+        timesCrawled?.let{corpus.timesCrawled = timesCrawled}
+        urlHash?.let{corpus.urlHash = urlHash}
         state?.let{corpus.state = state}
-        hash?.let{corpus.hash = hash}
-        path?.let{corpus.path = path}
+        documentHash?.let{corpus.documentHash = documentHash}
+        documentPath?.let{corpus.documentPath = documentPath}
         pageTitle?.let{corpus.pageTitle = pageTitle}
         true
+    }
+
+    fun updateAndGet(id: Int, timesCrawled: Int? = null, state: CrawlerState? = null, urlHash: String? = null, documentHash: String? = null, documentPath: String? = null, pageTitle: String? = null): CorpusDao? = transaction {
+        update(id, timesCrawled, state, urlHash, documentHash, documentPath, pageTitle)
+        CorpusDao.findById(id)
     }
 
     fun getAll(limit: Int = Integer.MAX_VALUE): List<CorpusDao> {
@@ -60,8 +64,8 @@ class CorpusDal {
         true
     }
 
-    fun findByHash(hash: String): CorpusDao? = transaction {
-        CorpusDao.find{ CorpusTable.hash eq hash}.firstOrNull()
+    fun findByUrlHash(hash: String): CorpusDao? = transaction {
+        CorpusDao.find{ CorpusTable.url_hash eq hash}.firstOrNull()
     }
 
     fun findCrawlable(window: Instant): List<CorpusDao> = transaction {

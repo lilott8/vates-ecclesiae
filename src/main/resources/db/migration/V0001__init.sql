@@ -1,10 +1,11 @@
 CREATE TABLE corpus (
     id SERIAL PRIMARY KEY,
     url TEXT NOT NULL,
+    url_hash varchar(1024) NOT NULL,
     domain VARCHAR(2048) NOT NULL,
-    path VARCHAR(1024) NOT NULL,
     page_title VARCHAR(2048) NOT NULL,
-    hash VARCHAR(1024) NOT NULL,
+    document_path VARCHAR(1024) NOT NULL,
+    document_hash VARCHAR(1024) NOT NULL,
     times_crawled INTEGER DEFAULT 0,
     state VARCHAR(255) NOT NULL,
     first_crawled TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -12,8 +13,9 @@ CREATE TABLE corpus (
 );
 
 CREATE INDEX idx_corpus_domain ON corpus(domain);
-CREATE INDEX idx_corpus_hash ON corpus(hash);
-CREATE INDEX idx_corpus_state on corpus(state);
+CREATE INDEX idx_corpus_document_hash ON corpus(document_hash);
+CREATE INDEX idx_corpus_state ON corpus(state);
+CREATE INDEX idx_corpus_url_hash ON corpus(url_hash);
 
 -- Function to update last_updated
 CREATE OR REPLACE FUNCTION update_last_updated_column()
