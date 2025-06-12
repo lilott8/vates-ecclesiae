@@ -14,12 +14,17 @@ suspend fun produceRecords(channel: Channel<CorpusDao>, config: ScraperConfig) {
     val dal = CorpusDal()
     supervisorScope {
         launch(Dispatchers.IO + CoroutineName("Producer")) {
-            val records = findRecords(dal, config)
-            records.forEach { state ->
-                log.info("Publishing ${state.url} to channel")
-                channel.send(state)
+            while(isActive) {
+
+                if (channel.isClosedForSend) {break}
+                // need to add logic to finish this
             }
-            delay(1000)
+//            val records = findRecords(dal, config)
+//            records.forEach { state ->
+//                log.info("Publishing ${state.url} to channel")
+//                channel.send(state)
+//            }
+//            delay(1000)
         }
     }
 }

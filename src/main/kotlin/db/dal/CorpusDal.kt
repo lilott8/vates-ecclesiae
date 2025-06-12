@@ -14,18 +14,24 @@ import java.time.Instant
 class CorpusDal {
 
     private val log = logger()
-    private val crawlable: List<CrawlerState> = listOf(CrawlerState.PENDING)
+    private val terminalStates: List<CrawlerState> = CrawlerState.terminals()
 
-    fun create(url: String, domain: String, pageTitle: String, path: String): CorpusDao = transaction {
+    fun create(url: String, domain: String, pageTitle: String = ""): CorpusDao = transaction {
         CorpusDao.new {
             this.url = url
             this.urlHash = url.toSHA256()
             this.domain = domain
-            this.documentPath = path
+            this.documentPath = ""
             this.documentHash = ""
             this.pageTitle = pageTitle
             this.state = CrawlerState.PENDING
             this.timesCrawled = 0
+        }
+    }
+
+    fun conditionalCreate(url: String, domain: String, pageTitle: String = ""): CorpusDao? = transaction {
+        findByUrlHash(url.toSHA256()).let{
+            create(url, domain, pageTitle)
         }
     }
 
@@ -69,7 +75,7 @@ class CorpusDal {
     }
 
     fun findCrawlable(window: Instant): List<CorpusDao> = transaction {
-        CorpusDao.find{ CorpusTable.state inList crawlable or (CorpusTable.lastUpdated greater window) }.toList()
+        CorpusDao.find{ CorpusTable.state notInList terminalStates or (CorpusTable.lastUpdated greater window) }.toList()
     }
 
     fun findById(entityId: Int): CorpusDao? = transaction {

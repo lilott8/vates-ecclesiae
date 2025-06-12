@@ -15,6 +15,7 @@ import us.cedarfarm.db.dao.CorpusDao
 import us.cedarfarm.db.models.CrawlerState
 import us.cedarfarm.db.models.StateContext
 import us.cedarfarm.states.crawlerFSM
+import us.cedarfarm.utils.getHostFromUrl
 import us.cedarfarm.utils.toSHA256
 import java.io.File
 import java.util.UUID
@@ -49,10 +50,9 @@ suspend fun startConsumers(channel: Channel<CorpusDao>, client: HttpClient, conf
 
 suspend fun handlePending(context: StateContext): StateContext {
     log.info("handlePending ${context.record.url}'s state: ${context.record.state}")
-    context.dal.update(context.record.id.value, context.record.timesCrawled, CrawlerState.FETCH_PAGE)
-    val updated = context.dal.findById(context.record.id.value)!!
+    val updated = context.dal.updateAndGet(context.record.id.value, context.record.timesCrawled, CrawlerState.FETCH_PAGE)!!
     log.info("handlePending changed ${updated.url} to state: ${updated.state}")
-    return context
+    return context.copy(record = updated)
 }
 
 suspend fun handleFetchPage(context: StateContext): StateContext {
@@ -70,14 +70,17 @@ suspend fun handleFetchPage(context: StateContext): StateContext {
             val pageTitle = titleRegex.find(body)?.groups?.get(1)?.value ?: ""
 
             val hash = body.toSHA256()
+            log.info("Writing ${context.record.url} to $path")
             File(path.toString()).writeText(body)
 
             newRecord = context.dal.updateAndGet(context.record.id.value,
                 state = CrawlerState.EXTRACT_LINKS,
                 timesCrawled = context.record.timesCrawled+1,
+                documentPath = path.toString(),
                 pageTitle = pageTitle,
                 documentHash = hash)!!
         }
+
     } catch(e: Exception) {
         log.error("Error fetching page, updating record, or writing results to $path")
         log.error(e)
@@ -88,16 +91,29 @@ suspend fun handleFetchPage(context: StateContext): StateContext {
 suspend fun handleExtractLinks(context: StateContext): StateContext {
     log.info("handleExtractLinks for ${context.record.url}")
     val document = Jsoup.parse(File(context.record.documentPath))
+    var newRecord = context.record
+    var insertedUrlCount = 0
+    var skippedUrlCount = 0
 
     // Extract and normalize links
     val links = document.select("a[href]")
         .mapNotNull { it.absUrl("href").takeIf { href -> href.isNotBlank() } }
 
-    // insert each new link
+    val totalUrlCount = links.size
+    links.forEach {
+        val result = context.dal.conditionalCreate(it, domain = getHostFromUrl(it) )
+        result?.let {
+            insertedUrlCount++
+        } ?: skippedUrlCount++
+    }
+    log.info("Total links: $totalUrlCount, Inserted: $insertedUrlCount, Skipped: $skippedUrlCount")
 
+    if (skippedUrlCount + insertedUrlCount != totalUrlCount) {
+        log.warn("Skipped Count($skippedUrlCount) + Inserted($insertedUrlCount) != Total($totalUrlCount)")
+    }
 
-//    context.record.state = CrawlerState.COMPLETE
-    return context
+    newRecord = context.dal.updateAndGet(context.record.id.value, state = CrawlerState.COMPLETE)!!
+    return context.copy(record = newRecord)
 }
 
 suspend fun handleComplete(context: StateContext): StateContext {

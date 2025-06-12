@@ -33,7 +33,7 @@ fun initializeCathedrales(config: ScraperConfig, dal: CorpusDal) {
         config.seed.forEach { seed ->
             log.info("Inserting seed $seed")
             val host = getHostFromUrl(seed)
-            dal.create(seed, host, "", "")
+            dal.create(seed, host, "")
         }
         log.info("Completed initializing db with seed data")
     }

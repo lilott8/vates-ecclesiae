@@ -21,5 +21,9 @@ enum class CrawlerState {
                 else -> PENDING
             }
         }
+
+        fun terminals(): List<CrawlerState> {
+            return listOf(COMPLETE, FAILED)
+        }
     }
 }
