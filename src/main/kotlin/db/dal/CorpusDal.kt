@@ -30,7 +30,7 @@ class CorpusDal {
     }
 
     fun conditionalCreate(url: String, domain: String, pageTitle: String = ""): CorpusDao? = transaction {
-        findByUrlHash(url.toSHA256()).let{
+        findByUrlHash(url.toSHA256())?.let{
             create(url, domain, pageTitle)
         }
     }

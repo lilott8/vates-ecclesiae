@@ -4,27 +4,31 @@ import kotlinx.coroutines.channels.Channel
 import us.cedarfarm.db.dao.CorpusDao
 import db.dal.CorpusDal
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.SendChannel
 import org.apache.logging.log4j.kotlin.logger
 import us.cedarfarm.config.ScraperConfig
 import us.cedarfarm.utils.calculateWindow
 
 private val log = logger("Producer")
 
-suspend fun produceRecords(channel: Channel<CorpusDao>, config: ScraperConfig) {
+suspend fun produceRecords(channel: SendChannel<CorpusDao>, config: ScraperConfig) {
     val dal = CorpusDal()
     supervisorScope {
         launch(Dispatchers.IO + CoroutineName("Producer")) {
-            while(isActive) {
+            while (isActive) {
+                log.info("Loading producer.")
+                val records = findRecords(dal, config)
 
-                if (channel.isClosedForSend) {break}
-                // need to add logic to finish this
+                log.info("Producer found: ${records.size}")
+                records.forEach { state ->
+                    log.info("Publishing ${state.url} to channel")
+                    channel.send(state)
+                }
+
+                val delayTime = if (records.isEmpty()) { 10000L } else { 1000L }
+                log.info("Producer sleeping for $delayTime ms")
+                delay(delayTime)
             }
-//            val records = findRecords(dal, config)
-//            records.forEach { state ->
-//                log.info("Publishing ${state.url} to channel")
-//                channel.send(state)
-//            }
-//            delay(1000)
         }
     }
 }
